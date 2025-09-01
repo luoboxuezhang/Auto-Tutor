@@ -182,6 +182,15 @@ app.post('/api/send-email', upload.fields([
 
         const htmlBody = toHtml(body);
 
+        // RFC5987 编码工具，保障中文等非ASCII文件名在多数客户端正确显示
+        const encodeRFC5987 = (str) => encodeURIComponent(str)
+            .replace(/['()]/g, escape)
+            .replace(/\*/g, '%2A');
+        const asciiFallback = (str, fallback = 'attachment.pdf') => {
+            const ascii = str.replace(/[\u0080-\uFFFF]/g, '');
+            return ascii && /[\w\.-]/.test(ascii) ? ascii : fallback;
+        };
+
         // 邮件选项
         const mailOptions = {
             from: `${senderName ? '"' + senderName + '" ' : ''}<${senderEmail}>`,
@@ -191,30 +200,36 @@ app.post('/api/send-email', upload.fields([
             text: body
         };
 
-        // 组装附件：简历、成绩单、其他PDF
+        // 组装附件：简历、成绩单、其他PDF（带 contentDisposition，包含 filename* 为 UTF-8）
         const attachments = [];
         if (resumeFiles[0]) {
+            const name = resumeFiles[0].originalname || 'resume.pdf';
             attachments.push({
-                filename: resumeFiles[0].originalname || 'resume.pdf',
+                filename: name,
                 path: resumeFiles[0].path,
-                contentType: 'application/pdf'
+                contentType: 'application/pdf',
+                contentDisposition: `attachment; filename="${asciiFallback(name, 'resume.pdf')}"; filename*=UTF-8''${encodeRFC5987(name)}`
             });
-            log('debug', `已添加简历: ${resumeFiles[0].originalname}`);
+            log('debug', `已添加简历: ${name}`);
         }
         if (transcriptFiles[0]) {
+            const name = transcriptFiles[0].originalname || 'transcript.pdf';
             attachments.push({
-                filename: transcriptFiles[0].originalname || 'transcript.pdf',
+                filename: name,
                 path: transcriptFiles[0].path,
-                contentType: 'application/pdf'
+                contentType: 'application/pdf',
+                contentDisposition: `attachment; filename="${asciiFallback(name, 'transcript.pdf')}"; filename*=UTF-8''${encodeRFC5987(name)}`
             });
-            log('debug', `已添加成绩单: ${transcriptFiles[0].originalname}`);
+            log('debug', `已添加成绩单: ${name}`);
         }
         if (otherFiles && otherFiles.length) {
             otherFiles.forEach((f, idx) => {
+                const name = f.originalname || `attachment_${idx + 1}.pdf`;
                 attachments.push({
-                    filename: f.originalname || `attachment_${idx + 1}.pdf`,
+                    filename: name,
                     path: f.path,
-                    contentType: 'application/pdf'
+                    contentType: 'application/pdf',
+                    contentDisposition: `attachment; filename="${asciiFallback(name, `attachment_${idx + 1}.pdf`)}"; filename*=UTF-8''${encodeRFC5987(name)}`
                 });
             });
             log('debug', `已添加其他PDF数量: ${otherFiles.length}`);
