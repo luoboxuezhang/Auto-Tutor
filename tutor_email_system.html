@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能导师套磁邮件系统</title>
+    <!-- 引入EmailJS库用于邮件发送 -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <!-- 引入 PDF.js 用于在浏览器中解析简历PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+    <script>
+      (function() {
+        try {
+          const pdfjsLib = window['pdfjs-dist/build/pdf'];
+          if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+          }
+        } catch (e) {
+          console.warn('PDF.js 初始化失败:', e);
+        }
+      })();
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #4facfe;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .file-input {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .file-input input[type=file] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px;
+            border: 2px dashed #4facfe;
+            border-radius: 8px;
+            text-align: center;
+            background: #f8f9ff;
+            color: #4facfe;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .file-input:hover .file-input-label {
+            background: #4facfe;
+            color: white;
+        }
+
+        .tutor-entry {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: white;
+        }
+
+        .tutor-entry h3 {
+            color: #4facfe;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+            font-size: 18px;
+            padding: 15px 40px;
+            margin-top: 20px;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .status-message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+
+        .required {
+            color: #ff4757;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 智能导师套磁邮件系统</h1>
+            <p>智能生成个性化套磁邮件，助力学术申请之路</p>
+            <div style="background: rgba(255,255,255,0.1); padding: 15px; margin-top: 15px; border-radius: 8px; font-size: 0.9em;">
+                 <strong>📧 使用说明：</strong>本系统使用Node.js后端服务发送邮件。请确保：<br>
+                 1. 已启动后端服务器 (node email_server.js)<br>
+                 2. 使用QQ邮箱授权码而非登录密码<br>
+                 3. 在QQ邮箱设置中开启SMTP服务
+             </div>
+        </div>
+
+        <div class="main-content">
+            <form id="emailForm">
+                <!-- 用户信息配置 -->
+                <div class="section">
+                    <h2>📧 邮箱配置</h2>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="senderEmail">发件邮箱 <span class="required">*</span></label>
+                            <input type="email" id="senderEmail" name="senderEmail" required placeholder="your.email@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="senderPassword">邮箱密码/授权码 <span class="required">*</span></label>
+                            <input type="password" id="senderPassword" name="senderPassword" required placeholder="邮箱密码或应用专用密码">
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="smtpServer">SMTP服务器</label>
+                            <input type="text" id="smtpServer" name="smtpServer" placeholder="smtp.gmail.com (自动检测)">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtpPort">SMTP端口</label>
+                            <input type="number" id="smtpPort" name="smtpPort" placeholder="587 (自动检测)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LLM配置 -->
+                <div class="section">
+                    <h2>🤖 LLM配置</h2>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="llmBaseUrl">LLM Base URL <span class="required">*</span></label>
+                            <input type="url" id="llmBaseUrl" name="llmBaseUrl" required placeholder="https://api.openai.com/v1">
+                        </div>
+                        <div class="form-group">
+                            <label for="llmApiKey">API Key <span class="required">*</span></label>
+                            <input type="password" id="llmApiKey" name="llmApiKey" required placeholder="sk-...">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="llmModel">模型名称</label>
+                        <input type="text" id="llmModel" name="llmModel" placeholder="gpt-3.5-turbo">
+                    </div>
+                </div>
+
+                <!-- 申请者信息 -->
+                <div class="section">
+                    <h2>👤 申请者信息</h2>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="applicantName">姓名 <span class="required">*</span></label>
+                            <input type="text" id="applicantName" name="applicantName" required placeholder="张三">
+                        </div>
+                        <div class="form-group">
+                            <label for="applicantSchool">学校</label>
+                            <input type="text" id="applicantSchool" name="applicantSchool" placeholder="某某大学">
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="applicantCollege">学院</label>
+                            <input type="text" id="applicantCollege" name="applicantCollege" placeholder="计算机学院">
+                        </div>
+                        <div class="form-group">
+                            <label for="applicantMajor">专业</label>
+                            <input type="text" id="applicantMajor" name="applicantMajor" placeholder="计算机科学与技术">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 申请信息 -->
+                <div class="section">
+                    <h2>📝 申请信息</h2>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="applicationType">申请目的 <span class="required">*</span></label>
+                            <select id="applicationType" name="applicationType" required>
+                                <option value="">请选择申请目的</option>
+                                <option value="保研">保研</option>
+                                <option value="实习">实习</option>
+                                <option value="访问学生">访问学生</option>
+                                <option value="博士申请">博士申请</option>
+                                <option value="硕士申请">硕士申请</option>
+                                <option value="博士后">博士后</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="resumeFile">简历PDF <span class="required">*</span></label>
+                            <div class="file-input">
+                                <input type="file" id="resumeFile" name="resumeFile" accept=".pdf" required>
+                                <label for="resumeFile" class="file-input-label">
+                                    📄 点击上传简历PDF文件
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="transcriptFile">成绩单PDF（可选）</label>
+                            <div class="file-input">
+                                <input type="file" id="transcriptFile" name="transcriptFile" accept=".pdf">
+                                <label for="transcriptFile" class="file-input-label">
+                                    📄 点击上传成绩单PDF文件（可选）
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="additionalPdfs">附加PDF（多选，可选）</label>
+                            <div class="file-input">
+                                <input type="file" id="additionalPdfs" name="additionalPdfs" accept=".pdf" multiple>
+                                <label for="additionalPdfs" class="file-input-label">
+                                    📎 选择要一并发送的其他PDF（仅文件名会进入提示词）
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="emailStyle">邮件语言风格提示词 <span class="required">*</span> 
+                            <span class="tooltip">ℹ️
+                                <span class="tooltiptext">描述你希望生成的邮件风格，如：正式、学术、友好等</span>
+                            </span>
+                        </label>
+                        <textarea id="emailStyle" name="emailStyle" required placeholder="请描述你希望的邮件语言风格，例如：请用正式而不失亲和的学术语调撰写，避免过于AI化的表达，体现真诚和专业性..."></textarea>
+                    </div>
+                </div>
+
+                <!-- 导师信息 -->
+                <div class="section">
+                    <h2>👨‍🏫 导师信息</h2>
+                    <div id="tutorList">
+                        <div class="tutor-entry">
+                            <h3>导师 1</h3>
+                            <div class="form-group">
+                                <label>导师邮箱 <span class="required">*</span></label>
+                                <input type="email" name="tutorEmail[]" required placeholder="professor@university.edu">
+                            </div>
+                            <div class="form-group">
+                                <label>导师姓名</label>
+                                <input type="text" name="tutorName[]" placeholder="教授姓名">
+                            </div>
+                            <div class="form-group">
+                                <label>个人主页网址</label>
+                                <input type="url" name="tutorWebsite[]" placeholder="https://university.edu/~professor">
+                            </div>
+                            <div class="form-group">
+                                <label>个人介绍文本</label>
+                                <textarea name="tutorBio[]" placeholder="导师的研究方向、学术背景等信息..."></textarea>
+                            </div>
+                            <button type="button" class="btn btn-danger" onclick="removeTutor(this)" style="display: none;">删除导师</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="addTutor()">➕ 添加导师</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('batchUpload').click()">📁 批量上传</button>
+                    <input type="file" id="batchUpload" accept=".csv,.json" style="display: none;" onchange="handleBatchUpload(this)">
+                </div>
+
+                <!-- 发送按钮 -->
+                <div style="text-align: center;">
+                    <button type="submit" class="btn btn-success">🚀 生成并发送邮件</button>
+                </div>
+
+                <!-- 进度显示 -->
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div id="progressText" style="text-align: center; margin-top: 10px;">准备中...</div>
+                </div>
+
+                <!-- 状态消息 -->
+                <div id="statusMessage" class="status-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let tutorCount = 1;
+
+        // 添加导师
+        function addTutor() {
+            tutorCount++;
+            const tutorList = document.getElementById('tutorList');
+            const newTutor = document.createElement('div');
+            newTutor.className = 'tutor-entry';
+            newTutor.innerHTML = `
+                <h3>导师 ${tutorCount}</h3>
+                <div class="form-group">
+                    <label>导师邮箱 <span class="required">*</span></label>
+                    <input type="email" name="tutorEmail[]" required placeholder="professor@university.edu">
+                </div>
+                <div class="form-group">
+                    <label>导师姓名</label>
+                    <input type="text" name="tutorName[]" placeholder="教授姓名">
+                </div>
+                <div class="form-group">
+                    <label>个人主页网址</label>
+                    <input type="url" name="tutorWebsite[]" placeholder="https://university.edu/~professor">
+                </div>
+                <div class="form-group">
+                    <label>个人介绍文本</label>
+                    <textarea name="tutorBio[]" placeholder="导师的研究方向、学术背景等信息..."></textarea>
+                </div>
+                <button type="button" class="btn btn-danger" onclick="removeTutor(this)">删除导师</button>
+            `;
+            tutorList.appendChild(newTutor);
+            updateDeleteButtons();
+        }
+
+        // 删除导师
+        function removeTutor(button) {
+            button.parentElement.remove();
+            updateTutorNumbers();
+            updateDeleteButtons();
+        }
+
+        // 更新导师编号
+        function updateTutorNumbers() {
+            const tutors = document.querySelectorAll('.tutor-entry h3');
+            tutors.forEach((h3, index) => {
+                h3.textContent = `导师 ${index + 1}`;
+            });
+            tutorCount = tutors.length;
+        }
+
+        // 更新删除按钮显示
+        function updateDeleteButtons() {
+            const deleteButtons = document.querySelectorAll('.tutor-entry .btn-danger');
+            deleteButtons.forEach(button => {
+                button.style.display = deleteButtons.length > 1 ? 'inline-block' : 'none';
+            });
+        }
+
+        // 处理批量上传
+        function handleBatchUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    if (file.name.endsWith('.json')) {
+                        data = JSON.parse(e.target.result);
+                    } else if (file.name.endsWith('.csv')) {
+                        data = parseCSV(e.target.result);
+                    }
+
+                    // 清空现有导师列表
+                    document.getElementById('tutorList').innerHTML = '';
+                    tutorCount = 0;
+
+                    // 添加批量导师
+                    data.forEach(tutor => {
+                        addTutorFromData(tutor);
+                    });
+
+                    showStatus('批量导师信息上传成功！', 'success');
+                } catch (error) {
+                    showStatus('文件格式错误，请检查文件内容', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 从数据添加导师
+        function addTutorFromData(tutorData) {
+            tutorCount++;
+            const tutorList = document.getElementById('tutorList');
+            const newTutor = document.createElement('div');
+            newTutor.className = 'tutor-entry';
+            newTutor.innerHTML = `
+                <h3>导师 ${tutorCount}</h3>
+                <div class="form-group">
+                    <label>导师邮箱 <span class="required">*</span></label>
+                    <input type="email" name="tutorEmail[]" required placeholder="professor@university.edu" value="${tutorData.email || ''}">
+                </div>
+                <div class="form-group">
+                    <label>导师姓名</label>
+                    <input type="text" name="tutorName[]" placeholder="教授姓名" value="${tutorData.name || ''}">
+                </div>
+                <div class="form-group">
+                    <label>个人主页网址</label>
+                    <input type="url" name="tutorWebsite[]" placeholder="https://university.edu/~professor" value="${tutorData.website || ''}">
+                </div>
+                <div class="form-group">
+                    <label>个人介绍文本</label>
+                    <textarea name="tutorBio[]" placeholder="导师的研究方向、学术背景等信息...">${tutorData.bio || ''}</textarea>
+                </div>
+                <button type="button" class="btn btn-danger" onclick="removeTutor(this)">删除导师</button>
+            `;
+            tutorList.appendChild(newTutor);
+            updateDeleteButtons();
+        }
+
+        // 解析CSV
+        function parseCSV(text) {
+            const lines = text.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    const values = lines[i].split(',').map(v => v.trim());
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header] = values[index] || '';
+                    });
+                    data.push(obj);
+                }
+            }
+            return data;
+        }
+
+        // 显示状态消息
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-message status-${type}`;
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // 更新进度
+        function updateProgress(percent, text) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = text;
+        }
+
+        // 使用 PDF.js 解析上传的简历PDF为纯文本
+        async function extractResumeText(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfjsLib = window['pdfjs-dist/build/pdf'];
+                if (!pdfjsLib) throw new Error('PDF.js 未加载');
+
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = '';
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const content = await page.getTextContent();
+                    const strings = content.items.map(item => item.str);
+                    fullText += strings.join(' ') + '\n';
+                }
+                // 规范化空白，避免过长提示词
+                return fullText.replace(/\s+/g, ' ').trim();
+            } catch (err) {
+                console.warn('简历解析失败:', err);
+                return '';
+            }
+        }
+
+        // 自动检测SMTP设置
+        function detectSMTPSettings(email) {
+            const domain = email.split('@')[1];
+            const smtpSettings = {
+                'gmail.com': { server: 'smtp.gmail.com', port: 587 },
+                'outlook.com': { server: 'smtp-mail.outlook.com', port: 587 },
+                'hotmail.com': { server: 'smtp-mail.outlook.com', port: 587 },
+                'yahoo.com': { server: 'smtp.mail.yahoo.com', port: 587 },
+                '163.com': { server: 'smtp.163.com', port: 587 },
+                '126.com': { server: 'smtp.126.com', port: 587 },
+                'qq.com': { server: 'smtp.qq.com', port: 587 }
+            };
+
+            if (smtpSettings[domain]) {
+                document.getElementById('smtpServer').value = smtpSettings[domain].server;
+                document.getElementById('smtpPort').value = smtpSettings[domain].port;
+            }
+        }
+
+        // 邮箱输入时自动检测SMTP
+        document.getElementById('senderEmail').addEventListener('blur', function() {
+            if (this.value) {
+                detectSMTPSettings(this.value);
+            }
+        });
+
+        // 文件上传显示
+        document.getElementById('resumeFile').addEventListener('change', function() {
+            const label = this.nextElementSibling;
+            if (this.files.length > 0) {
+                label.textContent = `✅ ${this.files[0].name}`;
+                label.style.background = '#d4edda';
+                label.style.color = '#155724';
+            }
+        });
+        // 成绩单上传显示
+        document.getElementById('transcriptFile').addEventListener('change', function() {
+            const label = this.nextElementSibling;
+            if (this.files.length > 0) {
+                label.textContent = `✅ ${this.files[0].name}`;
+                label.style.background = '#d4edda';
+                label.style.color = '#155724';
+            } else {
+                label.textContent = '📄 点击上传成绩单PDF文件（可选）';
+                label.style.background = '';
+                label.style.color = '';
+            }
+        });
+        // 附加PDF上传显示
+        document.getElementById('additionalPdfs').addEventListener('change', function() {
+            const label = this.nextElementSibling;
+            if (this.files.length > 0) {
+                label.textContent = `✅ 已选择 ${this.files.length} 个PDF附件`;
+                label.style.background = '#d4edda';
+                label.style.color = '#155724';
+            } else {
+                label.textContent = '📎 选择要一并发送的其他PDF（仅文件名会进入提示词）';
+                label.style.background = '';
+                label.style.color = '';
+            }
+        });
+
+        // 表单提交处理
+        document.getElementById('emailForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // 显示进度条
+            document.getElementById('progressContainer').style.display = 'block';
+            updateProgress(0, '准备发送邮件...');
+
+            try {
+                // 收集表单数据
+                const formData = new FormData(this);
+                const tutors = collectTutorData();
+                
+                if (tutors.length === 0) {
+                    throw new Error('请至少添加一位导师信息');
+                }
+
+                // 验证每个导师至少有邮箱和（主页或介绍）
+                for (let tutor of tutors) {
+                    if (!tutor.email) {
+                        throw new Error('所有导师都必须提供邮箱地址');
+                    }
+                    if (!tutor.website && !tutor.bio) {
+                        throw new Error('每位导师必须提供个人主页网址或个人介绍文本');
+                    }
+                }
+
+                // 收集申请者基本信息（供提示词与发件人名称使用）
+                const applicantInfo = {
+                    name: (formData.get('applicantName') || '').trim(),
+                    school: (formData.get('applicantSchool') || '').trim(),
+                    college: (formData.get('applicantCollege') || '').trim(),
+                    major: (formData.get('applicantMajor') || '').trim()
+                };
+
+                // 解析上传的简历PDF文本，并限制输入长度
+                updateProgress(10, '正在解析简历PDF...');
+                const resumeFileInput = document.getElementById('resumeFile');
+                const resumeFile = resumeFileInput && resumeFileInput.files ? resumeFileInput.files[0] : null;
+                let resumeText = '';
+                if (resumeFile) {
+                    resumeText = await extractResumeText(resumeFile);
+                }
+                const resumeTextLimited = (resumeText || '').slice(0, 4000); // 避免提示词过长
+
+                // 解析成绩单PDF文本，并限制输入长度（可选）
+                updateProgress(15, '正在解析成绩单PDF...');
+                const transcriptInput = document.getElementById('transcriptFile');
+                const transcriptFile = transcriptInput && transcriptInput.files ? transcriptInput.files[0] : null;
+                let transcriptText = '';
+                if (transcriptFile) {
+                    transcriptText = await extractResumeText(transcriptFile);
+                }
+                const transcriptTextLimited = (transcriptText || '').slice(0, 4000);
+
+                // 收集附加PDF的文件名（仅文件名进入提示词）
+                const additionalInput = document.getElementById('additionalPdfs');
+                const additionalFiles = additionalInput && additionalInput.files ? Array.from(additionalInput.files) : [];
+                const additionalPdfNames = additionalFiles.map(f => f.name);
+
+                updateProgress(20, '正在生成个性化邮件...');
+
+                // 为每个导师生成邮件
+                for (let i = 0; i < tutors.length; i++) {
+                    const tutor = tutors[i];
+                    updateProgress(20 + (i / tutors.length) * 60, `正在为 ${tutor.name || tutor.email} 生成邮件...`);
+                    
+                    // 获取导师信息
+                    let tutorInfo = tutor.bio || '';
+                    if (tutor.website) {
+                        try {
+                            tutorInfo += await fetchWebsiteContent(tutor.website);
+                        } catch (error) {
+                            console.warn('无法获取网页内容:', error);
+                        }
+                    }
+
+                    // 调用LLM生成邮件（加入简历、成绩单解析文本和附加PDF文件名）
+                    const emailContent = await generateEmail({
+                        tutorInfo: tutorInfo,
+                        tutorName: tutor.name,
+                        applicationType: formData.get('applicationType'),
+                        emailStyle: formData.get('emailStyle'),
+                        llmBaseUrl: formData.get('llmBaseUrl'),
+                        llmApiKey: formData.get('llmApiKey'),
+                        llmModel: formData.get('llmModel') || 'gpt-3.5-turbo',
+                        resumeText: resumeTextLimited,
+                        transcriptText: transcriptTextLimited,
+                        additionalPdfNames: additionalPdfNames,
+                        applicant: applicantInfo
+                    });
+
+                    // 发送邮件
+                    await sendEmail({
+                        to: tutor.email,
+                        subject: emailContent.subject,
+                        body: emailContent.body,
+                        senderEmail: formData.get('senderEmail'),
+                        senderPassword: formData.get('senderPassword'),
+                        smtpServer: formData.get('smtpServer'),
+                        smtpPort: formData.get('smtpPort'),
+                        resumeFile: formData.get('resumeFile'),
+                        transcriptFile: formData.get('transcriptFile'),
+                        additionalPdfs: additionalFiles,
+                        senderName: applicantInfo.name || '申请者'
+                    });
+                }
+
+                updateProgress(100, '所有邮件发送完成！');
+                showStatus(`成功向 ${tutors.length} 位导师发送了个性化套磁邮件！`, 'success');
+                
+            } catch (error) {
+                console.error('发送失败:', error);
+                showStatus('发送失败: ' + error.message, 'error');
+                updateProgress(0, '发送失败');
+            }
+
+            // 3秒后隐藏进度条
+            setTimeout(() => {
+                document.getElementById('progressContainer').style.display = 'none';
+            }, 3000);
+        });
+
+        // 收集导师数据
+        function collectTutorData() {
+            const tutors = [];
+            const tutorEntries = document.querySelectorAll('.tutor-entry');
+            
+            tutorEntries.forEach(entry => {
+                const email = entry.querySelector('input[name="tutorEmail[]"]').value;
+                const name = entry.querySelector('input[name="tutorName[]"]').value;
+                const website = entry.querySelector('input[name="tutorWebsite[]"]').value;
+                const bio = entry.querySelector('textarea[name="tutorBio[]"]').value;
+                
+                if (email) {
+                    tutors.push({ email, name, website, bio });
+                }
+            });
+            
+            return tutors;
+        }
+
+        // 获取网页内容（通过后端代理）
+        async function fetchWebsiteContent(url) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/fetch-website?url=${encodeURIComponent(url)}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    return result.content;
+                } else {
+                    console.warn('无法获取网页内容:', result.message);
+                    return '';
+                }
+            } catch (error) {
+                console.warn('无法获取网页内容，将使用提供的个人介绍');
+                return '';
+            }
+        }
+
+        // 生成邮件内容
+        async function generateEmail(params) {
+            const prompt = `
+请根据以下信息生成一封专业、个性化且高度匹配的学术套磁邮件：
+
+【导师信息】\n${params.tutorInfo}
+【导师姓名】\n${params.tutorName || '教授'}
+【申请目的】\n${params.applicationType}
+【语言风格要求】\n${params.emailStyle}
+【申请者基本信息（结构化）】\n姓名：${params.applicant?.name || ''}；学校：${params.applicant?.school || ''}；学院：${params.applicant?.college || ''}；专业：${params.applicant?.major || ''}
+【申请者简历（已解析文本）】\n${params.resumeText || '（未提供）'}
+【申请者成绩单（已解析文本）】\n${params.transcriptText || '（未提供）'}
+【附加PDF（仅文件名）】\n${(params.additionalPdfNames || []).join('，') || '（无）'}
+
+请严格结合申请者简历与导师研究方向进行定制化写作，要求：
+1. 主题简洁明了，能体现与导师研究的契合点；
+2. 正文需先展示对导师研究的具体理解（引用其研究方向/论文/项目中的关键信息），再精准匹配申请者简历/成绩单中的经历/成果/技能；
+3. 明确表达申请意向、拟贡献点、可开展的合作方向与时间安排；
+4. 用词专业得体、自然真诚，避免AI腔、套话与空泛夸张；
+5. 信息必须真实准确，不得捏造经历与成果；
+6. 输出必须为JSON格式，仅包含 subject 与 body 两个字段；
+7. 正文为纯文本（不使用markdown），分为2-4段，段落间空一行且顶格书写。`;
+
+            try {
+                const response = await fetch(`${params.llmBaseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${params.llmApiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: params.llmModel,
+                        messages: [{
+                            role: 'user',
+                            content: prompt
+                        }],
+                        temperature: 0.7
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`LLM API调用失败: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const content = data.choices[0].message.content;
+                
+                try {
+                    return JSON.parse(content);
+                } catch {
+                    // 如果不是JSON格式，回退为默认主题并直接使用正文
+                    return {
+                        subject: `关于${params.applicationType}申请的咨询`,
+                        body: content
+                    };
+                }
+            } catch (error) {
+                throw new Error(`邮件生成失败: ${error.message}`);
+            }
+        }
+
+        // 发送邮件（通过Node.js后端）
+        async function sendEmail(params) {
+            try {
+                // 创建FormData对象
+                const formData = new FormData();
+                formData.append('to', params.to);
+                formData.append('subject', params.subject);
+                formData.append('body', params.body);
+                formData.append('senderEmail', params.senderEmail);
+                formData.append('senderPassword', params.senderPassword);
+                formData.append('smtpServer', params.smtpServer);
+                formData.append('smtpPort', params.smtpPort);
+                formData.append('senderName', params.senderName || '');
+                
+                // 如果有简历文件，添加
+                if (params.resumeFile) {
+                    formData.append('resume', params.resumeFile);
+                }
+                // 如果有成绩单文件，添加
+                if (params.transcriptFile) {
+                    formData.append('transcript', params.transcriptFile);
+                }
+                // 附加PDF（多个）
+                if (params.additionalPdfs && params.additionalPdfs.length) {
+                    params.additionalPdfs.forEach(file => {
+                        formData.append('attachments', file);
+                    });
+                }
+
+                // 调用后端API发送邮件
+                const response = await fetch('http://localhost:3000/api/send-email', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('邮件发送成功:', params.to);
+                    return { success: true, message: '邮件发送成功' };
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('邮件发送错误:', error);
+                throw new Error(`邮件发送失败: ${error.message}`);
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDeleteButtons();
+            
+            // 添加提示信息
+            showStatus('系统已就绪，请填写相关信息后点击发送', 'info');
+        });
+    </script>
+</body>
+</html>
