@@ -3,34 +3,6 @@
 ![前端示意图](https://github.com/Zhanli-Li/Auto-Tutor/blob/main/preview.png)
 害怕生成的陶瓷信有问题？可进行复核编辑！
 ![可进行人工复核](https://github.com/Zhanli-Li/Auto-Tutor/blob/main/edit.png)
-## 核心功能
-
-- **邮件发送**: 基于SMTP协议的安全邮件发送，支持附件
-- **导师管理**: 单个添加和CSV批量导入导师信息
-- **网页抓取**: 自动获取导师个人主页内容
-- **文件上传**: PDF简历附件上传（最大10MB）
-- **日志系统**: 四级日志（error/warn/info/debug）
-
-## 系统要求
-
-- **Node.js**: >= 14.0
-- **npm**: >= 6.0
-- **内存**: >= 512MB
-- **磁盘**: >= 100MB可用空间
-- **网络**: 需要访问SMTP服务器和目标网站
-
-## 项目结构
-
-```
-tutor-email-system/
-├── tutor_email_system.html    # 前端界面文件
-├── email_server.js            # Express后端服务器
-├── package.json               # 项目依赖和脚本配置
-├── install.js                 # 自动安装脚本
-├── .env.example              # 环境变量配置模板
-├── uploads/                  # 文件上传目录（自动创建）
-└── README.md                 # 项目文档
-```
 
 ## 快速配置环境
 
@@ -234,7 +206,37 @@ SMTP服务器: smtp.mxhichina.com
 SMTP端口: 25 / 465
 ```
 
-## 系统使用指南
+
+## 核心功能
+
+- **邮件发送**: 基于SMTP协议的安全邮件发送，支持附件
+- **导师管理**: 单个添加和CSV批量导入导师信息
+- **网页抓取**: 自动获取导师个人主页内容
+- **文件上传**: PDF简历附件上传（最大10MB）
+- **日志系统**: 四级日志（error/warn/info/debug）
+
+## 系统要求
+
+- **Node.js**: >= 14.0
+- **npm**: >= 6.0
+- **内存**: >= 512MB
+- **磁盘**: >= 100MB可用空间
+- **网络**: 需要访问SMTP服务器和目标网站
+
+## 项目结构
+
+```
+tutor-email-system/
+├── tutor_email_system.html    # 前端界面文件
+├── email_server.js            # Express后端服务器
+├── package.json               # 项目依赖和脚本配置
+├── install.js                 # 自动安装脚本
+├── .env.example              # 环境变量配置模板
+├── uploads/                  # 文件上传目录（自动创建）
+└── README.md                 # 项目文档
+```
+
+## 系统说明
 
 ### API接口说明
 
