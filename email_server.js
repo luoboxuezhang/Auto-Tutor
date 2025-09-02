@@ -24,6 +24,7 @@ const CONFIG = {
     MAX_CONTENT_SIZE_MB: parseInt(process.env.MAX_CONTENT_SIZE_MB) || 5,
     MAX_CONTENT_LENGTH: parseInt(process.env.MAX_CONTENT_LENGTH) || 3000,
     UPLOAD_DIR: process.env.UPLOAD_DIR || 'uploads',
+    LOG_DIR: process.env.LOG_DIR || 'log',
     LOG_LEVEL: process.env.LOG_LEVEL || 'info',
     ENABLE_ACCESS_LOG: process.env.ENABLE_ACCESS_LOG === 'true'
 };
@@ -43,6 +44,11 @@ function log(level, message, ...args) {
 if (!fs.existsSync(CONFIG.UPLOAD_DIR)) {
     fs.mkdirSync(CONFIG.UPLOAD_DIR, { recursive: true });
     log('info', `创建上传目录: ${CONFIG.UPLOAD_DIR}`);
+}
+// 创建log目录
+if (!fs.existsSync(CONFIG.LOG_DIR)) {
+    fs.mkdirSync(CONFIG.LOG_DIR, { recursive: true });
+    log('info', `创建日志目录: ${CONFIG.LOG_DIR}`);
 }
 
 // 速率限制
@@ -109,6 +115,14 @@ function validateEmailInput(data) {
     return true;
 }
 
+// 安全处理文件/目录名
+function sanitizeForPath(name) {
+    return (name || '')
+        .replace(/[\\/:*?"<>|]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 // 邮件发送接口
 app.post('/api/send-email', upload.fields([
     { name: 'resume', maxCount: 1 },
@@ -134,6 +148,9 @@ app.post('/api/send-email', upload.fields([
         } = req.body;
 
         const senderName = (req.body.senderName || '').trim();
+        const tutorNameRaw = (req.body.tutorName || '').trim();
+        const emailLanguage = (req.body.emailLanguage || '').trim();
+
         // 收集上传的文件（简历、成绩单、其他附件）
         const files = req.files || {};
         const resumeFiles = files.resume || [];
@@ -243,6 +260,41 @@ app.post('/api/send-email', upload.fields([
         
         const duration = Date.now() - startTime;
         log('info', `邮件发送成功: ${info.messageId}, 耗时: ${duration}ms`);
+
+        // 写入本地日志：每位导师一个文件夹 log/xx导师
+        try {
+            let tutorDirName = sanitizeForPath(tutorNameRaw) || sanitizeForPath(to.split('@')[0]);
+            if (!/导师$/.test(tutorDirName)) {
+                tutorDirName += '导师';
+            }
+            tutorDirName = tutorDirName || '未知导师';
+
+            const tutorDir = path.join(CONFIG.LOG_DIR, tutorDirName);
+            fs.mkdirSync(tutorDir, { recursive: true });
+
+            const ts = new Date().toISOString().replace(/[:]/g, '-');
+            const safeSubject = sanitizeForPath(subject).slice(0, 60) || '邮件';
+            const logFilename = `${ts}_${safeSubject}.json`;
+            const logPath = path.join(tutorDir, logFilename);
+
+            const logData = {
+                timestamp: new Date().toISOString(),
+                messageId: info.messageId || '',
+                durationMs: duration,
+                to,
+                tutorName: tutorNameRaw,
+                from: mailOptions.from,
+                language: emailLanguage,
+                subject,
+                body,
+                html: htmlBody,
+                attachments: (attachments || []).map(a => ({ filename: a.filename }))
+            };
+            fs.writeFileSync(logPath, JSON.stringify(logData, null, 2), 'utf8');
+            log('info', `已保存邮件日志: ${logPath}`);
+        } catch (logErr) {
+            log('warn', '写入邮件日志失败:', logErr.message);
+        }
         
         // 清理所有上传的临时文件
         uploadedFiles.forEach(p => {

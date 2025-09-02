@@ -373,12 +373,13 @@
                             <input type="text" id="applicantMajor" name="applicantMajor" placeholder="计算机科学与技术">
                         </div>
                     </div>
-                </div>                <div class="grid">
-                    <div class="form-group">
-                        <label for="enrollYear">入学年份 <span class="required">*</span></label>
-                        <input type="number" id="enrollYear" name="enrollYear" required placeholder="2021" min="1990" max="2100" step="1">
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="enrollYear">入学年份 <span class="required">*</span></label>
+                            <input type="number" id="enrollYear" name="enrollYear" required placeholder="2021" min="1990" max="2100" step="1">
+                        </div>
+                        <div></div>
                     </div>
-                    <div></div>
                 </div>
 
                 <!-- 申请信息 -->
@@ -395,8 +396,9 @@
                                 <option value="博士申请">博士申请</option>
                                 <option value="硕士申请">硕士申请</option>
                                 <option value="博士后">博士后</option>
-                                <option value="其他">其他</option>
+                                <option value="其他">其他（自定义）</option>
                             </select>
+                            <input type="text" id="customApplicationType" name="customApplicationType" placeholder="请输入自定义申请目的" style="display:none; margin-top:8px;" />
                         </div>
                         <div class="form-group">
                             <label for="resumeFile">简历PDF <span class="required">*</span></label>
@@ -419,7 +421,7 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="additionalPdfs">附加PDF（多选，可选）</label>
+                            <label for="additionalPdfs">附加PDF（可选，可多选）</label>
                             <div class="file-input">
                                 <input type="file" id="additionalPdfs" name="additionalPdfs" accept=".pdf" multiple>
                                 <label for="additionalPdfs" class="file-input-label">
@@ -428,13 +430,15 @@
                             </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="emailStyle">邮件语言风格提示词 <span class="required">*</span> 
-                            <span class="tooltip">ℹ️
-                                <span class="tooltiptext">描述你希望生成的邮件风格，如：正式、学术、友好等</span>
-                            </span>
-                        </label>
-                        <textarea id="emailStyle" name="emailStyle" required placeholder="请描述你希望的邮件语言风格，例如：请用正式而不失亲和的学术语调撰写，避免过于AI化的表达，体现真诚和专业性..."></textarea>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="emailLanguage">邮件语言</label>
+                            <select id="emailLanguage" name="emailLanguage">
+                                <option value="zh">中文</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        <div></div>
                     </div>
                 </div>
 
@@ -469,8 +473,12 @@
                 </div>
 
                 <!-- 发送按钮 -->
-                <div style="text-align: center;">
+                <div style="display:flex; justify-content:center; align-items:center; gap:16px; flex-wrap:wrap;">
                     <button type="submit" class="btn btn-success">🚀 生成并发送邮件</button>
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="reviewBeforeSend" name="reviewBeforeSend">
+                        发送前逐封复核（可编辑）
+                    </label>
                 </div>
 
                 <!-- 进度显示 -->
@@ -701,6 +709,17 @@
                 label.style.color = '#155724';
             }
         });
+        
+        // 申请目的：显示/隐藏自定义输入
+        document.getElementById('applicationType').addEventListener('change', function() {
+            const custom = document.getElementById('customApplicationType');
+            if (this.value === '其他') {
+                custom.style.display = '';
+            } else {
+                custom.style.display = 'none';
+                custom.value = '';
+            }
+        });
         // 成绩单上传显示
         document.getElementById('transcriptFile').addEventListener('change', function() {
             const label = this.nextElementSibling;
@@ -740,6 +759,8 @@
                 // 收集表单数据
                 const formData = new FormData(this);
                 const tutors = collectTutorData();
+                const reviewEnabled = document.getElementById('reviewBeforeSend').checked;
+                const language = (formData.get('emailLanguage') || 'zh');
                 
                 if (tutors.length === 0) {
                     throw new Error('请至少添加一位导师信息');
@@ -796,6 +817,13 @@
 
                 updateProgress(20, '正在生成个性化邮件...');
 
+                // 计算申请目的（支持自定义）
+                const selectedType = formData.get('applicationType') || '';
+                const customType = (document.getElementById('customApplicationType').value || '').trim();
+                const applicationTypeUsed = customType || selectedType;
+
+                const pendingEmails = [];
+
                 // 为每个导师生成邮件
                 for (let i = 0; i < tutors.length; i++) {
                     const tutor = tutors[i];
@@ -815,7 +843,7 @@
                     const emailContent = await generateEmail({
                         tutorInfo: tutorInfo,
                         tutorName: tutor.name,
-                        applicationType: formData.get('applicationType'),
+                        applicationType: applicationTypeUsed,
                         emailStyle: formData.get('emailStyle'),
                         llmBaseUrl: formData.get('llmBaseUrl'),
                         llmApiKey: formData.get('llmApiKey'),
@@ -823,18 +851,16 @@
                         resumeText: resumeTextLimited,
                         transcriptText: transcriptTextLimited,
                         additionalPdfNames: additionalPdfNames,
-                        applicant: applicantInfo
+                        applicant: applicantInfo,
+                        language: language
                     });
 
-                    // 发送邮件
                     // 发送邮件（强制使用规范主题：类型：年份（入学时间）- 姓名 - 学校）
                     const typeMap = { '访问学生': '访问', '保研': '保研', '实习': '实习' };
-                    const appTypeRaw = formData.get('applicationType');
-                    const typeText = typeMap[appTypeRaw] || appTypeRaw;
+                    const typeText = typeMap[applicationTypeUsed] || applicationTypeUsed;
                     const subjectStrict = `${typeText}：${applicantInfo.enrollYear}（入学时间）- ${applicantInfo.name} - ${applicantInfo.school}`;
                     
-                    // 发送邮件
-                    await sendEmail({
+                    const draft = {
                         to: tutor.email,
                         subject: subjectStrict,
                         body: emailContent.body,
@@ -845,8 +871,23 @@
                         resumeFile: formData.get('resumeFile'),
                         transcriptFile: formData.get('transcriptFile'),
                         additionalPdfs: additionalFiles,
-                        senderName: applicantInfo.name || '申请者'
-                    });
+                        senderName: applicantInfo.name || '申请者',
+                        tutorName: tutor.name || '',
+                        emailLanguage: language
+                    };
+
+                    if (reviewEnabled) {
+                        pendingEmails.push(draft);
+                    } else {
+                        await sendEmail(draft);
+                    }
+                }
+
+                if (reviewEnabled) {
+                    renderReviewList(pendingEmails);
+                    updateProgress(85, '请逐封复核并可编辑，确认后发送');
+                    showStatus('请在下方复核每封邮件的主题与正文，确认无误后点击“确认并发送全部”。', 'info');
+                    return; // 等用户确认后再发送
                 }
 
                 updateProgress(100, '所有邮件发送完成！');
@@ -863,6 +904,66 @@
                 document.getElementById('progressContainer').style.display = 'none';
             }, 3000);
         });
+
+        // 渲染复核列表并绑定发送
+        function renderReviewList(pendingEmails) {
+            const section = document.getElementById('reviewSection');
+            const list = document.getElementById('reviewList');
+            list.innerHTML = '';
+            section.style.display = 'block';
+
+            pendingEmails.forEach((item, idx) => {
+                const card = document.createElement('div');
+                card.className = 'review-card';
+                card.style.border = '1px solid #ddd';
+                card.style.padding = '12px';
+                card.style.borderRadius = '8px';
+                card.style.marginBottom = '12px';
+                
+                card.innerHTML = `
+                    <div style="font-weight:600; margin-bottom:8px;">收件人：${item.tutorName ? item.tutorName + ' ' : ''}&lt;${item.to}&gt;</div>
+                    <div class="form-group">
+                        <label>主题</label>
+                        <input type="text" class="review-subject" data-index="${idx}" value="${item.subject.replace(/"/g,'&quot;')}">
+                    </div>
+                    <div class="form-group">
+                        <label>正文</label>
+                        <textarea class="review-body" data-index="${idx}" style="height:140px;">${item.body.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+            const sendBtn = document.getElementById('sendAllAfterReview');
+            sendBtn.onclick = async () => {
+                try {
+                    updateProgress(90, '正在发送复核后的邮件...');
+                    // 同步用户编辑
+                    const subjInputs = list.querySelectorAll('.review-subject');
+                    const bodyInputs = list.querySelectorAll('.review-body');
+                    subjInputs.forEach(inp => {
+                        const i = parseInt(inp.dataset.index);
+                        pendingEmails[i].subject = inp.value;
+                    });
+                    bodyInputs.forEach(inp => {
+                        const i = parseInt(inp.dataset.index);
+                        pendingEmails[i].body = inp.value;
+                    });
+
+                    for (let i = 0; i < pendingEmails.length; i++) {
+                        await sendEmail(pendingEmails[i]);
+                        updateProgress(90 + Math.floor(((i+1)/pendingEmails.length)*10), `已发送 ${i+1}/${pendingEmails.length}`);
+                    }
+
+                    updateProgress(100, '所有邮件发送完成！');
+                    showStatus(`成功向 ${pendingEmails.length} 位导师发送了个性化套磁邮件！`, 'success');
+                } catch (err) {
+                    console.error('复核发送失败:', err);
+                    showStatus('复核发送失败: ' + err.message, 'error');
+                    updateProgress(0, '发送失败');
+                }
+            };
+        }
 
         // 收集导师数据
         function collectTutorData() {
@@ -903,8 +1004,10 @@
 
         // 生成邮件内容
         async function generateEmail(params) {
+            const langTag = params.language === 'en' ? 'English' : '中文';
+            const langInstruction = params.language === 'en' ? 'Please write the email in natural, professional English.' : '请使用自然、专业的中文写作。';
             const prompt = `
-请根据以下信息生成一封专业、个性化且高度匹配的学术套磁邮件：
+请根据以下信息生成一封专业、个性化且高度匹配的学术套磁邮件（语言：${langTag}）：
 
 【导师信息】\n${params.tutorInfo}
 【导师姓名】\n${params.tutorName || '教授'}
@@ -920,9 +1023,11 @@
 2. 正文需先展示对导师研究的具体理解（引用其研究方向/论文/项目中的关键信息），再精准匹配申请者简历/成绩单中的经历/成果/技能；
 3. 明确表达申请意向、拟贡献点、可开展的合作方向与时间安排；
 4. 用词专业得体、自然真诚，避免AI腔、套话与空泛夸张；
-5. 信息必须真实准确，不得捏造经历与成果；
-6. 输出必须为JSON格式，仅包含 subject 与 body 两个字段；
-7. 正文为纯文本（不使用markdown），分为2-4段，段落间空一行且顶格书写。`;
+5. 不能瞎编没看到的信息，特别是导师和申请者的信息；
+6. 信息必须真实准确，不得捏造经历与成果；
+7. 输出必须为JSON格式，仅包含 subject 与 body 两个字段；
+8. 正文为纯文本（不使用markdown），分为2-4段，段落间空一行且顶格书写；
+9. ${langInstruction}`;
 
             try {
                 const response = await fetch(`${params.llmBaseUrl}/chat/completions`, {
@@ -975,6 +1080,8 @@
                 formData.append('smtpServer', params.smtpServer);
                 formData.append('smtpPort', params.smtpPort);
                 formData.append('senderName', params.senderName || '');
+                formData.append('tutorName', params.tutorName || '');
+                formData.append('emailLanguage', params.emailLanguage || '');
                 
                 // 如果有简历文件，添加
                 if (params.resumeFile) {
@@ -1019,5 +1126,12 @@
             showStatus('系统已就绪，请填写相关信息后点击发送', 'info');
         });
     </script>
+
+    <!-- 复核区 -->
+    <div id="reviewSection" class="section" style="display:none;">
+        <h2>🧐 复核与编辑</h2>
+        <div id="reviewList"></div>
+        <button id="sendAllAfterReview" type="button" class="btn btn-success">确认并发送全部</button>
+    </div>
 </body>
 </html>
