@@ -25,83 +25,22 @@
 ![自定义语言风格](https://github.com/Zhanli-Li/Auto-Tutor/blob/main/info.png)
 
 如果您觉得有用，可以点亮star支持一下！
-## 快速配置环境
-
-### 方法一：自动安装（推荐）
-
-1. **检查Node.js环境**
-```bash
-# 检查Node.js版本（需要>=14.0）
-node --version
-
-# 检查npm版本
-npm --version
-```
-
-2. **进入项目目录**
-```bash
-# Windows
-cd C:\path\to\tutor-email-system
-
-# macOS/Linux
-cd /path/to/tutor-email-system
-```
-
-3. **运行自动安装**
-```bash
-# 安装最新版本的multer
-npm install multer@latest
-
-# 然后安装其他依赖
-npm install
-```
-> 说明：`npm install`会自动触发`postinstall`脚本，运行`install.js`进行环境检查和配置
-
-### 方法二：手动安装
-
-1. **安装依赖包**
-```bash
-# 安装生产依赖
-npm install express@^4.18.2 nodemailer@^6.9.7 cors@^2.8.5 multer@^1.4.5 node-fetch@^3.3.2 express-rate-limit@^7.1.5 dotenv@^16.3.1
-
-# 安装开发依赖（可选）
-npm install --save-dev nodemon@^3.0.1
-```
-
-2. **创建环境配置文件**
-```bash
-# 复制环境变量模板
-cp .env.example .env
-
-# Windows用户使用
-copy .env.example .env
-```
-
-3. **创建上传目录**
-```bash
-# 创建uploads目录
-mkdir uploads
-
-# Windows用户使用
-md uploads
-```
 
 ## 快速启动服务
 
-### 生产环境启动（小白用这个）
+### 一键启动（推荐）
 ```bash
-# 标准启动方式
-npm start
-
-# 或直接运行
-node email_server.js
+# 授权并启动（Linux/macOS）
+cd /home/lizhanli/taoci
+chmod +x ./start.sh
+./start.sh
 ```
-
-### 开发环境启动
-```bash
-# 使用nodemon自动重启（需要安装devDependencies）
-npm run dev
-```
+启动脚本会自动完成：
+- 检查 Node/npm
+- 安装依赖（触发 postinstall 的 install.js）
+- 生成 .env（若不存在则从 .env.example 复制）
+- 创建 uploads 与 log 目录
+- 以生产模式启动服务（默认端口 3000）
 
 ### 启动成功标志
 ```
