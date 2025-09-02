@@ -65,47 +65,6 @@ mkdir uploads
 md uploads
 ```
 
-## 环境配置
-
-### 编辑.env文件
-
-```bash
-# 使用文本编辑器打开.env文件
-nano .env
-# 或者
-vim .env
-# 或者使用任何文本编辑器
-```
-
-### 关键配置项说明
-
-```env
-# 服务器端口（默认3000）
-PORT=3000
-
-# 运行环境（development/production）
-NODE_ENV=production
-
-# 速率限制：15分钟内最多10次请求
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=10
-
-# 文件上传限制：最大10MB
-MAX_FILE_SIZE_MB=10
-ALLOWED_FILE_TYPES=application/pdf
-
-# 邮件内容限制
-MAX_EMAIL_CONTENT_LENGTH=50000
-MAX_EMAIL_SUBJECT_LENGTH=200
-
-# 网页抓取超时：30秒
-FETCH_TIMEOUT_MS=30000
-MAX_CONTENT_SIZE_MB=5
-
-# 日志级别：error/warn/info/debug
-LOG_LEVEL=info
-```
-
 ## 快速启动服务
 
 ### 生产环境启动
@@ -139,7 +98,6 @@ npm run dev
 # 在浏览器中打开
 http://localhost:3000/tutor_email_system.html
 ```
-
 ## SMTP邮箱配置
 
 ### QQ邮箱配置（推荐）
@@ -204,6 +162,47 @@ SMTP端口: 587 / 465
 # 阿里云企业邮箱
 SMTP服务器: smtp.mxhichina.com
 SMTP端口: 25 / 465
+```
+
+## 系统变量配置（可不设置）
+
+### 编辑.env文件
+
+```bash
+# 使用文本编辑器打开.env文件
+nano .env
+# 或者
+vim .env
+# 或者使用任何文本编辑器
+```
+
+### 关键配置项说明
+
+```env
+# 服务器端口（默认3000）
+PORT=3000
+
+# 运行环境（development/production）
+NODE_ENV=production
+
+# 速率限制：15分钟内最多10次请求
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=10
+
+# 文件上传限制：最大10MB
+MAX_FILE_SIZE_MB=10
+ALLOWED_FILE_TYPES=application/pdf
+
+# 邮件内容限制
+MAX_EMAIL_CONTENT_LENGTH=50000
+MAX_EMAIL_SUBJECT_LENGTH=200
+
+# 网页抓取超时：30秒
+FETCH_TIMEOUT_MS=30000
+MAX_CONTENT_SIZE_MB=5
+
+# 日志级别：error/warn/info/debug
+LOG_LEVEL=info
 ```
 
 
