@@ -3,7 +3,7 @@
 ![前端示意图](https://github.com/Zhanli-Li/Auto-Tutor/blob/main/preview.png)
 害怕生成的陶瓷信有问题？可进行复核编辑！
 ![可进行人工复核](https://github.com/Zhanli-Li/Auto-Tutor/blob/main/edit.png)
-
+如果您觉得有用，可以点亮star支持一下！
 ## 快速配置环境
 
 ### 方法一：自动安装（推荐）
