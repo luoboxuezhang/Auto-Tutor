@@ -123,6 +123,24 @@ function sanitizeForPath(name) {
         .trim();
 }
 
+// 修复浏览器上传中文文件名被按 Latin1 解读导致的乱码（例如显示为 “ä¸­å…”）
+// 思路：尝试用 latin1 -> utf8 纠正；若纠正后含中日韩字符且原字符串疑似乱码，则采用纠正结果
+function fixFilenameEncoding(name) {
+    if (!name) return name;
+    try {
+        const decoded = Buffer.from(name, 'latin1').toString('utf8');
+        const hasCJK = /[\u3400-\u9FFF]/.test(decoded);
+        const origHasCJK = /[\u3400-\u9FFF]/.test(name);
+        const looksMojibake = /[ÃÂåäæçèéíóú]/.test(name); // 常见 UTF-8 被当作 Latin1 的伪影
+        if ((hasCJK && !origHasCJK) || looksMojibake) {
+            return decoded;
+        }
+    } catch (e) {
+        // 忽略ncorrect
+    }
+    return name;
+}
+
 // 邮件发送接口
 app.post('/api/send-email', upload.fields([
     { name: 'resume', maxCount: 1 },
@@ -220,7 +238,7 @@ app.post('/api/send-email', upload.fields([
         // 组装附件：简历、成绩单、其他PDF（带 contentDisposition，包含 filename* 为 UTF-8）
         const attachments = [];
         if (resumeFiles[0]) {
-            const name = resumeFiles[0].originalname || 'resume.pdf';
+            const name = fixFilenameEncoding(resumeFiles[0].originalname || 'resume.pdf');
             attachments.push({
                 filename: name,
                 path: resumeFiles[0].path,
@@ -230,7 +248,7 @@ app.post('/api/send-email', upload.fields([
             log('debug', `已添加简历: ${name}`);
         }
         if (transcriptFiles[0]) {
-            const name = transcriptFiles[0].originalname || 'transcript.pdf';
+            const name = fixFilenameEncoding(transcriptFiles[0].originalname || 'transcript.pdf');
             attachments.push({
                 filename: name,
                 path: transcriptFiles[0].path,
@@ -241,7 +259,7 @@ app.post('/api/send-email', upload.fields([
         }
         if (otherFiles && otherFiles.length) {
             otherFiles.forEach((f, idx) => {
-                const name = f.originalname || `attachment_${idx + 1}.pdf`;
+                const name = fixFilenameEncoding(f.originalname || `attachment_${idx + 1}.pdf`);
                 attachments.push({
                     filename: name,
                     path: f.path,
