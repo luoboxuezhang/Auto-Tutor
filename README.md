@@ -1,5 +1,4 @@
-# 智能导师套磁邮件系统
-
+# Auto-Tutor: 一键批量套磁
 一键向目标导师群发送陶瓷邮件，邮件内容基于你的简历和导师的介绍（基于LLM），零代码即可使用！
 ![前端示意图](https://github.com/Zhanli-Li/Auto-Tutor/blob/main/preview.png)
 ## 核心功能
