@@ -1,5 +1,5 @@
 # Auto-Tutor: 一键批量套磁
-一键向目标导师群发送陶瓷邮件，邮件内容基于你的简历和导师的介绍（基于LLM），零代码即可使用！
+一键向目标导师群发送陶瓷邮件，邮件内容基于你的简历和导师的介绍由LLM生成，零代码即可使用！
 ![前端示意图](https://github.com/Zhanli-Li/Auto-Tutor/blob/main/preview.png)
 害怕生成的陶瓷信有问题？可进行复核编辑！
 ![可进行人工复核](https://github.com/Zhanli-Li/Auto-Tutor/blob/main/edit.png)
