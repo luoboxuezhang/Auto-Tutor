@@ -31,7 +31,7 @@
 ### 一键启动（推荐）
 ```bash
 # 授权并启动（Linux/macOS）
-cd /home/lizhanli/taoci
+cd project_path #替换为你的设备上的本项目地址
 chmod +x ./start.sh
 ./start.sh
 ```
