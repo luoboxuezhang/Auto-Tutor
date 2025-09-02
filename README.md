@@ -16,6 +16,8 @@
 
 本地自动存套磁记录log！
 
+![log](https://github.com/Zhanli-Li/Auto-Tutor/blob/main/email_log.png)
+
 **您可能的担心4：想自定义提示词实现一些套磁信的风格和内容？**
 
 支持自定义语言风格提示词！
