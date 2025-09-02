@@ -5,6 +5,10 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
+// 新增：HTTP/HTTPS 与 DNS
+const http = require('http');
+const https = require('https');
+const dns = require('dns');
 
 // 加载环境变量
 require('dotenv').config();
@@ -28,6 +32,12 @@ const CONFIG = {
     LOG_LEVEL: process.env.LOG_LEVEL || 'info',
     ENABLE_ACCESS_LOG: process.env.ENABLE_ACCESS_LOG === 'true'
 };
+
+// 新增：IPv4 优先 & Keep-Alive Agent（减少握手、提高稳定性）
+try { if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first'); } catch (e) {}
+// 使用默认 lookup；仅通过 dns.setDefaultResultOrder 优先 IPv4，避免部分场景 hostname 为空触发错误
+const keepAliveAgentHttp = new http.Agent({ keepAlive: true, maxSockets: 10 });
+const keepAliveAgentHttps = new https.Agent({ keepAlive: true, maxSockets: 10 });
 
 // 日志函数
 function log(level, message, ...args) {
@@ -394,14 +404,26 @@ app.get('/api/fetch-website', async (req, res) => {
         
         const fetch = (await import('node-fetch')).default;
         
-        const response = await fetch(url, {
-            timeout: CONFIG.FETCH_TIMEOUT_MS,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        // 使用带重试和超时的抓取逻辑
+        const response = await fetchWithRetry(
+            fetch,
+            url,
+            {
+                // 仍然限制最大重定向次数
+                follow: 5,
+                // 限制响应体最大尺寸，避免过大
+                size: CONFIG.MAX_CONTENT_SIZE_MB * 1024 * 1024,
+                // 使用 Keep-Alive + IPv4 优先的 Agent（在封装中默认提供，可覆盖）
+                agent: (parsedUrl) => parsedUrl.protocol === 'http:' ? keepAliveAgentHttp : keepAliveAgentHttps
             },
-            follow: 5, // 最多跟随5次重定向
-            size: CONFIG.MAX_CONTENT_SIZE_MB * 1024 * 1024
-        });
+            {
+                maxRetries: parseInt(process.env.FETCH_MAX_RETRIES) || 4,
+                timeoutMs: CONFIG.FETCH_TIMEOUT_MS,
+                backoffBaseMs: 400,
+                backoffFactor: 2,
+                maxBackoffMs: 5000
+            }
+        );
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -479,3 +501,65 @@ process.on('SIGINT', () => {
     log('info', '收到SIGINT信号，正在关闭服务器...');
     process.exit(0);
 });
+
+// 简易退避等待
+function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+// 新增：带超时与重试的抓取封装（指数退避 + 抖动）
+async function fetchWithRetry(fetchImpl, url, opts = {}, retryOpts = {}) {
+    const {
+        maxRetries = 4,
+        timeoutMs = 15000,
+        backoffBaseMs = 400,
+        backoffFactor = 2,
+        maxBackoffMs = 5000
+    } = retryOpts;
+
+    const defaultHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+    };
+
+    const baseOptions = {
+        redirect: 'follow',
+        // node-fetch 支持 agent 为函数：根据协议返回对应 Agent
+        agent: (parsedUrl) => parsedUrl.protocol === 'http:' ? keepAliveAgentHttp : keepAliveAgentHttps,
+        ...opts,
+        headers: { ...defaultHeaders, ...(opts.headers || {}) }
+    };
+
+    let lastErr;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const res = await fetchImpl(url, { ...baseOptions, signal: controller.signal });
+            // 对 429/5xx 做重试
+            if (!res.ok && (res.status === 429 || res.status >= 500)) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            clearTimeout(timer);
+            return res;
+        } catch (err) {
+            clearTimeout(timer);
+            lastErr = err;
+            const msg = (err && err.message) || '';
+            const code = err && (err.code || err.errno);
+            const retryable = (
+                msg.includes('timeout') || msg.includes('aborted') ||
+                msg.includes('network') || msg.includes('fetch failed') ||
+                (code && ['ECONNRESET','ETIMEDOUT','ECONNREFUSED','EAI_AGAIN','ENOTFOUND'].includes(code)) ||
+                /HTTP\s(429|5\d\d)/.test(msg)
+            );
+            if (attempt < maxRetries && retryable) {
+                const backoff = Math.min(maxBackoffMs, backoffBaseMs * Math.pow(backoffFactor, attempt)) * (0.5 + Math.random());
+                log('warn', `抓取失败，准备重试 ${attempt + 1}/${maxRetries}，原因: ${msg}，等待 ${Math.round(backoff)}ms`);
+                await sleep(backoff);
+                continue;
+            }
+            break;
+        }
+    }
+    throw lastErr;
+}
