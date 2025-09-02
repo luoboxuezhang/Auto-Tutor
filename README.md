@@ -30,10 +30,14 @@
 
 ### 一键启动（推荐）
 ```bash
-# 授权并启动（Linux/macOS/windows）
-cd project_path #替换为你的设备上的本项目地址
-chmod +x ./start.sh
-./start.sh
+# 安装最新版本的multer
+npm install multer@latest
+
+# 然后安装其他依赖
+npm install
+
+#启动服务
+npm start
 ```
 启动脚本会自动完成：
 - 检查 Node/npm
