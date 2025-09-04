@@ -328,6 +328,10 @@
                             <label for="smtpPort">SMTP端口</label>
                             <input type="number" id="smtpPort" name="smtpPort" placeholder="587 (自动检测)">
                         </div>
+                        <div class="form-group">
+                            <label for="proxyPort">代理端口（可选）</label>
+                            <input type="number" id="proxyPort" name="proxyPort" placeholder="7890" min="1" max="65535">
+                        </div>
                     </div>
                 </div>
 
@@ -950,6 +954,7 @@
                         senderPassword: formData.get('senderPassword'),
                         smtpServer: formData.get('smtpServer'),
                         smtpPort: formData.get('smtpPort'),
+                        proxyPort: formData.get('proxyPort'),
                         resumeFile: formData.get('resumeFile'),
                         transcriptFile: formData.get('transcriptFile'),
                         additionalPdfs: additionalFiles,
@@ -1188,6 +1193,9 @@
                 formData.append('senderPassword', params.senderPassword);
                 formData.append('smtpServer', params.smtpServer);
                 formData.append('smtpPort', params.smtpPort);
+                if (params.proxyPort) {
+                    formData.append('proxyPort', params.proxyPort);
+                }
                 formData.append('senderName', params.senderName || '');
                 formData.append('tutorName', params.tutorName || '');
                 formData.append('emailLanguage', params.emailLanguage || '');

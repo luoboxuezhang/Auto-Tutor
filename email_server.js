@@ -175,6 +175,13 @@ app.post('/api/send-email', upload.fields([
             smtpPort
         } = req.body;
 
+        // 新增：可选的代理端口解析与校验（HTTP 代理）
+        const proxyPortRaw = (req.body.proxyPort || '').trim();
+        const proxyPort = proxyPortRaw ? parseInt(proxyPortRaw) : null;
+        if (proxyPortRaw && (isNaN(proxyPort) || proxyPort < 1 || proxyPort > 65535)) {
+            throw new Error('代理端口无效');
+        }
+
         const senderName = (req.body.senderName || '').trim();
         const tutorNameRaw = (req.body.tutorName || '').trim();
         const emailLanguage = (req.body.emailLanguage || '').trim();
@@ -190,8 +197,8 @@ app.post('/api/send-email', upload.fields([
         
         log('info', `开始发送邮件: ${senderEmail} -> ${to}`);
 
-        // 创建邮件传输器
-        const transporter = nodemailer.createTransport({
+        // 创建邮件传输器（新增：支持可选HTTP代理）
+        const transportOptions = {
             host: smtpServer,
             port: parseInt(smtpPort),
             secure: parseInt(smtpPort) === 465, // 465端口使用SSL
@@ -205,7 +212,12 @@ app.post('/api/send-email', upload.fields([
             connectionTimeout: 60000, // 60秒连接超时
             greetingTimeout: 30000, // 30秒问候超时
             socketTimeout: 60000 // 60秒socket超时
-        });
+        };
+        if (proxyPort) {
+            transportOptions.proxy = `http://127.0.0.1:${proxyPort}`; // 仅当提供代理端口时启用
+            log('info', `已启用SMTP代理: ${transportOptions.proxy}`);
+        }
+        const transporter = nodemailer.createTransport(transportOptions);
 
         // 验证SMTP连接
         await transporter.verify();
