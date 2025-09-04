@@ -331,10 +331,19 @@
                     </div>
                 </div>
 
+                
+
                 <!-- LLM配置 -->
                 <div class="section">
                     <h2>🤖 LLM配置</h2>
                     <div class="grid">
+                        <div class="form-group">
+                            <label for="llmProvider">API 供应商</label>
+                            <select id="llmProvider" name="llmProvider">
+                                <option value="openai">OpenAI</option>
+                                <option value="gemini">Google Gemini</option>
+                            </select>
+                        </div>
                         <div class="form-group">
                             <label for="llmBaseUrl">LLM Base URL <span class="required">*</span></label>
                             <input type="url" id="llmBaseUrl" name="llmBaseUrl" required placeholder="https://api.openai.com/v1">
@@ -503,6 +512,72 @@
     <script>
         let tutorCount = 1;
 
+        // 函数：保存表单数据到 localStorage
+        const STORAGE_KEY = 'intelligentTutorFormData';
+        function saveData() {
+            const formData = {};
+            // 筛选出需要保存的输入元素 (排除文件)
+            document.querySelectorAll('#emailForm input, #emailForm textarea, #emailForm select').forEach(el => {
+                if (el.type !== 'file' && el.id) {
+                    if (el.type === 'checkbox') {
+                        formData[el.id] = el.checked;
+                    } else {
+                        formData[el.id] = el.value;
+                    }
+                }
+            });
+
+            // 特别处理动态添加的导师信息
+            const tutors = [];
+            document.querySelectorAll('#tutorList .tutor-entry').forEach(entry => {
+                const tutor = {
+                    email: entry.querySelector('input[name="tutorEmail[]"]').value,
+                    name: entry.querySelector('input[name="tutorName[]"]').value,
+                    website: entry.querySelector('input[name="tutorWebsite[]"]').value,
+                    bio: entry.querySelector('textarea[name="tutorBio[]"]').value
+                };
+                tutors.push(tutor);
+            });
+            formData.tutors = tutors;
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+        }
+
+        // 函数：从 localStorage 加载并填充表单数据
+        function loadData() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (!savedData) return;
+
+            const formData = JSON.parse(savedData);
+
+            // 填充普通输入框
+            Object.keys(formData).forEach(key => {
+                // 排除导师信息，它将被单独处理
+                if (key === 'tutors') return;
+
+                const el = document.getElementById(key);
+                if (el) {
+                    if (el.type === 'checkbox') {
+                        el.checked = formData[key];
+                    } else {
+                        el.value = formData[key];
+                    }
+                }
+            });
+
+            // 触发一次 change 事件以确保UI同步 (例如 "其他" 选项)
+            document.getElementById('applicationType').dispatchEvent(new Event('change'));
+            
+            // 填充动态导师信息
+            if (formData.tutors && formData.tutors.length > 0) {
+                document.getElementById('tutorList').innerHTML = ''; // 清空默认的
+                tutorCount = 0;
+                formData.tutors.forEach(tutorData => {
+                    addTutorFromData(tutorData);
+                });
+            }
+        }
+
         // 添加导师
         function addTutor() {
             tutorCount++;
@@ -538,6 +613,7 @@
             button.parentElement.remove();
             updateTutorNumbers();
             updateDeleteButtons();
+            saveData()
         }
 
         // 更新导师编号
@@ -580,7 +656,7 @@
                     data.forEach(tutor => {
                         addTutorFromData(tutor);
                     });
-
+                    saveData();
                     showStatus('批量导师信息上传成功！', 'success');
                 } catch (error) {
                     showStatus('文件格式错误，请检查文件内容', 'error');
@@ -850,6 +926,7 @@
                         tutorName: tutor.name,
                         applicationType: applicationTypeUsed,
                         emailStyle: formData.get('emailStyle'),
+                        llmProvider: formData.get('llmProvider'),
                         llmBaseUrl: formData.get('llmBaseUrl'),
                         llmApiKey: formData.get('llmApiKey'),
                         llmModel: formData.get('llmModel') || 'gpt-3.5-turbo',
@@ -1033,31 +1110,43 @@
 7. 语言：${langInstruction}
 8. 生成的邮件内容必须可以直接使用，不需要任何二次编辑；
 8. 只输出“邮件正文”的纯文本，不要输出任何JSON/代码块/解释/主题/标题；不要包含“Subject/主题”等行；不要使用Markdown；段落数2-4，每段之间空一行，顶格书写，结尾要有申请者信息的个人落款（写确切的已知信息即可，不要把模糊的未知信息写上去，落款不在多，而在于准确，不能出现占位的留空让人填空的情形）`;
-
+            let content = '';
             try {
-                const response = await fetch(`${params.llmBaseUrl}/chat/completions`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${params.llmApiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: params.llmModel,
-                        messages: [{
-                            role: 'user',
-                            content: prompt
-                        }],
-                        temperature: 0.7
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`LLM API调用失败: ${response.status}`);
+                if(params.llmProvider === 'gemini'){
+                    // --- Gemini API 调用逻辑 ---
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${params.llmModel}:generateContent?key=${params.llmApiKey}`;
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`Gemini API 调用失败: ${errorData.error?.message || response.status}`);
+                    }
+                    const data = await response.json();
+                    content = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                }else{
+                    // --- OpenAI API 调用逻辑 (默认) ---
+                    const baseUrl = params.llmBaseUrl || 'https://api.openai.com/v1';
+                    const response = await fetch(`${baseUrl}/chat/completions`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${params.llmApiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: params.llmModel,
+                            messages: [{ role: 'user', content: prompt }],
+                            temperature: 0.7
+                        })
+                    });
+                    if (!response.ok) {
+                        throw new Error(`OpenAI API调用失败: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    content = data.choices?.[0]?.message?.content || '';
                 }
-
-                const data = await response.json();
-                let content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-
                 // 尽量只保留正文：
                 // 1) 若误返回JSON，解析后取 body 字段
                 let bodyText = '';
@@ -1144,6 +1233,11 @@
             
             // 添加提示信息
             showStatus('系统已就绪，请填写相关信息后点击发送', 'info');
+            loadData();
+
+            const form = document.getElementById('emailForm');
+            form.addEventListener('input', saveData);
+            form.addEventListener('change', saveData);
         });
     </script>
 
