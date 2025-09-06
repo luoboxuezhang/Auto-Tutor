@@ -38,7 +38,8 @@
 ### 一键启动（推荐）
 ```bash
 # 转到你系统上项目地址
-cd project_path 
+cd project_path
+
 # 安装最新版本的multer
 npm install multer@latest
 
