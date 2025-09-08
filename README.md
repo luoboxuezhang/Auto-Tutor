@@ -72,7 +72,9 @@ npm start
 # 在浏览器中打开
 http://localhost:3000/tutor_email_system.html
 ```
-## SMTP邮箱配置
+
+
+## SMTP邮箱配置（以下非开发者可以不用看，直接在前文启动web中点点点）
 
 ### QQ邮箱配置（推荐）
 
