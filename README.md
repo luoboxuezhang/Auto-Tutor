@@ -77,6 +77,7 @@ http://localhost:3000/tutor_email_system.html
 
 他们分别是:
 - [李展利 中南财经政法大学](https://zhanli-li.github.io/)
+- [刘朝阳 大连海事大学](https://github.com/NanaseAsahi/)
 
 ## SMTP邮箱配置（以下非开发者可以不用看，直接在前文启动web中点点点）
 
