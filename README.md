@@ -79,6 +79,7 @@ http://localhost:3000/tutor_email_system.html
 - [李展利 中南财经政法大学](https://zhanli-li.github.io/)
 - [刘朝阳 大连海事大学](https://github.com/NanaseAsahi/)
 - [杨鹏晖 清华大学](https://github.com/yph22/)
+- [华英凡 中国科学技术大学](https://sui1234bian.github.io/)
 - [汤家福 南京大学](https://github.com/kevin236-max)
 - 更新中...
 
